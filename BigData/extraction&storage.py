@@ -1,78 +1,52 @@
-import urllib
+from lxml import html
+import requests
 import re
-import io
-import string
 import json
-import pymongo
 from pymongo import MongoClient
-from collections import Counter
-from bs4 import BeautifulSoup
-#('us','ca','ky','ma','md','me','mi','mn','nv','ny')
+import time
 connection = MongoClient()
 db=connection.crime
 collection=db.crimestats
-states=['us','ca','ky','ma','md','me','mi','mn','oh','or','pa','ri','sc','sd','tn','tx','ut','va','vt','dc','wa','wi','wv','wy','nv']
+states=['ca','ky','ma','md','me','mi','mn','oh','or','pa','ri','sc','sd','tn','tx','ut','va','vt','dc','wa','wi','wv','wy','nv','ak','al','ar','az','co','ct','de','fl','ga','hi','ia','id','il','in','kn','la','mo','ms','mt','nc','nd','ne','nh','nj','nm','ny']
 for s in range(len(states)):
-        print states[s]
-        link1="http://www.disastercenter.com/crime/"+states[s]+"crime.htm"
-        print "---------------------------------------------"
-        print "Scraping "+link1 + "state data"
-        print "---------------------------------------------"
-        f1 = urllib.urlopen(link1)
+    print states[s]
+    link1="http://www.disastercenter.com/crime/"+states[s]+"crime.htm"
 
-        myfile01 = f1.read()
-        soup100 = BeautifulSoup(myfile01)
-        #print "main2=",soup100
-        soup101=soup100.find('table', width="100%")
-        # print "main=",soup101
-        #soup303=str(soup101)
-        #print "test-",len(soup101.findChildren('tr'))
-        rows = soup101.findChildren('tr')
-        if rows!=None:
-                rows = soup101.findChildren('tr')
-                print len(rows[2])
-                list =dict()
-                for m in range(len(rows)):
-                        data= str(rows[m].findChildren('td'))
-                        striped_data=re.sub("<.*?>", "", data)
-                        print len(striped_data)
-                        data1=striped_data.split(' ')
-                        #print "sd",data1
-                        print len(data1)
-                        #print "test=",data1[2]
+    startTime = time.time()
+    page = requests.get("http://www.disastercenter.com/crime/uscrime.htm")
 
-                        index0=states[s],re.sub("[^0-9]", "", data1[0])
-                        print states[s],re.sub("[^0-9]", "", data1[0])
-                        index=str(index0)
+    tree = html.fromstring(page.text)
 
-                        db.crimestats.insert({'State':states[s],
-                                        'Year':re.sub("[^0-9]", "", data1[0]),
-                                        'Population':re.sub("[^0-9]", "", data1[1]),
-                                        #'Population': data1[1].strip(),
-                                        'Total':re.sub("[^0-9]", "", data1[2] ),
-                                        'Violent':re.sub("[^0-9]", "", data1[3]),
-                                        'Property':re.sub("[^0-9]", "", data1[4]),
-                                        'Murder':re.sub("[^0-9]", "", data1[5]),
-                                        'Rape':re.sub("[^0-9]", "", data1[6]),
-                                        'Robbery':re.sub("[^0-9]", "", data1[7]),
-                                        'assault':re.sub("[^0-9]", "", data1[8]),
-                                        'Burglary':re.sub("[^0-9]", "", data1[9]),
-                                        'LTheft':re.sub("[^0-9]", "", data1[10]),
-                                        #'VTheft':re.sub("[^0-9a-zA-Z]", "", data1[11])
-                                        #'VTheft': data1[11].strip()
-                                        })
-                                        #db.crimestats.insert(list)
-                                        #print "==DATA DUMPED SUCCESSFULLY  TO DB=="
-                                       
-        else:
-                print "====NO TYPE==="
+
+    tables = [tree.xpath('//table/tbody/tr[2]/td/center/center/font/table/tbody')]
+
+    tabs = []
+
+    for table in tables:
+        tab = []
+        for row in table:
+            for col in row:
+                var = col.text_content()
+                var = var.strip().replace(" ", "")
+                var = var.split('\n')
+                if re.match('^\d{4}$', var[0].strip()):
+                    db.crimestats.insert({"State":states[s],
+                    "Year":re.sub("[^0-9]", "",var[0].strip()),
+                    "Population": re.sub("[^0-9]", "",var[1].strip()),
+                    "Total":re.sub("[^0-9]", "", var[2].strip()),
+                    "Violent":re.sub("[^0-9]", "",var[3].strip()),
+                    "Property": re.sub("[^0-9]", "",var[4].strip()),
+                    "Murder":re.sub("[^0-9]", "", var[5].strip()),
+                    "Forcible_Rape": re.sub("[^0-9]", "",var[6].strip()),
+                    "Robbery":re.sub("[^0-9]", "",var[7].strip()),
+                    "Aggravated_Assault": re.sub("[^0-9]", "",var[8].strip()),
+                    "Burglary": re.sub("[^0-9]", "",var[9].strip()),
+                    "Larceny_Theft": re.sub("[^0-9]", "",var[10].strip()),
+                    "Vehicle_Theft": re.sub("[^0-9]", "",var[11].strip())})
+
+print "DATA DUMP1 SUCCESS"
+                    
         
-#dblist=dict()
-#dblist['us']=list
-        #db.crimestats.insert(list)
-        #print "==DATA DUMPED SUCCESSFULLY  TO DB=="
-        #print "dict--",list
-#output=open("out.json","w")
-#json.dump(list,output, indent=4)
-#output.close()
+
+
 
